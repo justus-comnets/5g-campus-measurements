@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+python3.8 core_down_downtime.py
+python3.8 core_down_pdv.py
+python3.8 e2e_down_downtime.py
+python3.8 e2e_down_ipdv.py
+python3.8 e2e_up_downtime.py
+python3.8 e2e_up_ipdv.py
+python3.8 e2e_up_owd.py
+python3.8 e2e_up_pdv.py
+python3.8 losses_down.py
+python3.8 losses_up.py
+python3.8 single_owd_core.py
+python3.8 single_owd_e2e.py
