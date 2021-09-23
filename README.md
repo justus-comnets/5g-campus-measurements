@@ -1,11 +1,12 @@
-5G Campus Networks: A First Measurement Study
+[5G Campus Networks: A First Measurement Study](https://dx.doi.org/10.1109/ACCESS.2021.3108423)
 ---
+This repository contains the source code used for measurements, data analysis, and plot generation for the paper [5G Campus Networks: A First Measurement Study](https://dx.doi.org/10.1109/ACCESS.2021.3108423) [1].
 
-Source code used for measurements, data analysis and plot generation.
+The corresponding data set can be found at [IEEE Dataport](https://dx.doi.org/10.21227/xe3c-e968) [2].
 
 ## Content
 * [automated_measurement](automated_measurement/) contains scripts to automatically perform measurements using MooGen
-* [MoonGen](MonGen/) contains a copy of the original [MoonGen Repository](https://github.com/emmericp/MoonGen) 
+* [MoonGen](MoonGen/) contains a copy of the original [MoonGen Repository](https://github.com/emmericp/MoonGen) 
 by Paul Emmerich ([Commit b11da03](https://github.com/emmericp/MoonGen/commit/b11da03004ab08e1c12fe3c2b51d6417553b9fbc))
 with some modifications. TODO: Replace with fork.
 * [plots](plots/) contains a generalized plot script.
@@ -50,4 +51,33 @@ Plots can be generated with [plot.py](plots/plot.py)
 $ python3.8 plot.py --scenario VarParams --logdirs /tmp/SA/VarParams/download /tmp/NSA/VarParams/download --labels SA NSA
  --plot-type multiplecdf-owd --paper --show
 ```
+## 
 
+# References
+[1] J. Rischke, P. Sossalla, S. Itting, F. H. P. Fitzek and M. Reisslein, "5G Campus Networks: A First Measurement Study," in IEEE Access, vol. 9, pp. 121786-121803, 2021, doi: 10.1109/ACCESS.2021.3108423. [Available online](https://dx.doi.org/10.1109/ACCESS.2021.3108423).
+```
+@article{9524600,
+title = {5G Campus Networks: A First Measurement Study},
+author = {Justus {Rischke} and Peter {Sossalla} and Sebastian A. W. {Itting} and Frank H. P. {Fitzek} and Martin {Reisslein}},
+doi = {10.1109/ACCESS.2021.3108423},
+year = {2021},
+date = {2021-01-01},
+urldate = {2021-01-01},
+journal = {IEEE Access},
+volume = {9},
+pages = {121786-121803},
+keywords = {},
+pubstate = {published},
+tppubtype = {article}}
+```
+
+[2] Justus Rischke, July 8, 2021, "5G Campus Networks: Measurement Traces", IEEE Dataport, doi: https://dx.doi.org/10.21227/xe3c-e968.  [Available online](https://dx.doi.org/10.21227/xe3c-e968).
+```
+@data{xe3c-e968-21,
+doi = {10.21227/xe3c-e968},
+url = {https://dx.doi.org/10.21227/xe3c-e968},
+author = {Rischke, Justus},
+publisher = {IEEE Dataport},
+title = {5G Campus Networks: Measurement Traces},
+year = {2021}} 
+```
