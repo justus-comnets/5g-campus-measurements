@@ -9,8 +9,8 @@ sys.path.append("..")
 import pcap_parser
 import os
 from multiprocessing import Pool
-from pathos.multiprocessing import ProcessPool
 import argparse
+import subprocess
 import plotting
 
 scenarios = {"VarParams": "var_params",
@@ -20,7 +20,7 @@ scenarios = {"VarParams": "var_params",
 class Plot:
     def __init__(self, logdirs=None, scenario="VarParams", labels=None):
         if logdirs is None:
-            self.logdirs = "../logs/measurements/VarParams/download"
+            self.logdirs = ["../logs/measurements/VarParams/download"]
         else:
             self.logdirs = logdirs
 
@@ -100,6 +100,7 @@ class Plot:
                                 self.pp_dict[label][param0][param1].analyze,
                                 args=[file],
                                 kwds=opts)
+            print(workers_dict.keys(), self.results_dict.keys())
             for label in workers_dict.keys():
                 for param0 in workers_dict[label].keys():
                     for param1 in workers_dict[label][param0].keys():
@@ -549,7 +550,10 @@ class Plot:
 def create_dir(log_dir="/tmp/measurements"):
     try:
         # os.mkdir(log_dir)
-        os.system("mkdir -p {}".format(log_dir))
+        user = subprocess.check_output("whoami").decode("utf-8").strip()
+        os.system("sudo mkdir -p {}".format(log_dir))
+        os.system("sudo chgrp {} -R {}".format(user, log_dir))
+        os.system("sudo chown {} -R {}".format(user, log_dir))
     except OSError:
         print("Creation of the log directory {} failed".format(log_dir))
     else:
@@ -565,7 +569,7 @@ if __name__ == "__main__":
     parser.add_argument('--labels', help='Specify labels for the logs specified with --logdirs. ',
                         default=['None'], nargs='+')
     parser.add_argument('--plot-type', help='Specify plot type ("single", "multiple").',
-                        default='single')
+                        default='single-owd')
     parser.add_argument('--core', help='Analyze core pcaps.', action='store_true')
     parser.add_argument('--show', help='Show plot.', action='store_true')
     parser.add_argument('--paper', help='Plots are formatted for paper.', action='store_true')

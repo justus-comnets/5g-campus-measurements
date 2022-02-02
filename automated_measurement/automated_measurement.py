@@ -4,7 +4,9 @@ import argparse
 
 scenarios = {"VarParams": "var_params_scenario",
              "ThroughputTest": "throughput_test_scenario",
-             "ThroughputTestEval": "throughput_test_eval"}
+             "ThroughputTestEval": "throughput_test_eval",
+             "UdpPing": "udpping_scenario",
+             "DutDelay": "dut_delay_scenario"}
 
 
 class AutomatedMeasurement:
@@ -15,7 +17,7 @@ class AutomatedMeasurement:
         self.log_dir = log_dir
         self.temp_dir = temp_dir
 
-        command = "python3 ~/MoonGen/libmoon/deps/dpdk/usertools/dpdk-devbind.py --status | grep -A 5 \"Network devices using DPDK-compatible driver\""
+        command = "python3 ~/dpdk-devbind.py --status | grep -A 5 \"Network devices using DPDK-compatible driver\""
         result = subprocess.check_output(command, shell=True)
         print("DPDK devices: \n" + result.decode("utf8"))
         print("Tx port: {}".format(self.dpdk_tx_port))
@@ -29,25 +31,18 @@ class AutomatedMeasurement:
 
         scenario_module = __import__(scenarios[scenario])
         temp_scenario_dir = None
+        # TODO: the upload flag just causes confusion and should be removed
         if not upload:
-            scenario_dir = self.log_dir + "/{}/download/".format(scenario)
-            create_log_dir(scenario_dir)
-            tx_port = self.dpdk_tx_port
-            rx_port = self.dpdk_rx_port
-            if self.temp_dir:
-                temp_scenario_dir = self.temp_dir + "/{}/download/".format(scenario)
-                create_log_dir(temp_scenario_dir)
-
+            drct_dir = "/{}/download/".format(scenario)
         else:
-            scenario_dir = self.log_dir + "/{}/upload/".format(scenario)
-            create_log_dir(scenario_dir)
-            tx_port = self.dpdk_rx_port
-            rx_port = self.dpdk_tx_port
-            if self.temp_dir:
-                temp_scenario_dir = self.temp_dir + "/{}/upload/".format(scenario)
-                create_log_dir(temp_scenario_dir)
+            drct_dir = "/{}/upload/".format(scenario)
+        scenario_dir = self.log_dir + drct_dir
+        create_log_dir(scenario_dir)
+        if self.temp_dir:
+            temp_scenario_dir = self.temp_dir + drct_dir
+            create_log_dir(temp_scenario_dir)
 
-        scenario_class = getattr(scenario_module, scenario)(scenario_dir, tx_port, rx_port, self.dpdk_core_port, gw_mac, src_ip, dst_ip, ue_ip, temp_scenario_dir)
+        scenario_class = getattr(scenario_module, scenario)(scenario_dir, self.dpdk_tx_port, self.dpdk_rx_port, self.dpdk_core_port, gw_mac, src_ip, dst_ip, ue_ip, temp_scenario_dir)
         scenario_class.run(print_only=print_only)
         print("Finished measurements.")
 
@@ -80,6 +75,12 @@ if __name__ == "__main__":
     parser.add_argument('--dst-ip', help='DST IP.', default='10.40.17.1')
     parser.add_argument('--ue-ip', help='UE IP.', default='192.168.1.102')
     parser.add_argument('--print-only', help='Print only commands and do nothing else.', action='store_true')
+
+
+    # upload:
+    # sudo /home/justus/MoonGen/build/MoonGen /home/justus/MoonGen/examples/throughput-tester-capture.lua
+    # 2 1 1000000 1000 128 50000 --file /tmp/128.50.pcap
+    # --gw-ip 3c:fd:fe:b9:24:68 --src-ip 192.168.1.102 --dst-ip 10.40.18.2 --ue-ip 10.40.18.2
 
     args = parser.parse_args()
 

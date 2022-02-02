@@ -5,6 +5,7 @@ import argparse
 import struct
 import os
 import numpy as np
+from sklearn.linear_model import LinearRegression
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import array
@@ -30,7 +31,7 @@ assert sys.version_info >= (3, 8), "Python 3.8 or higher is required."
 # NOTE: python script with HW timestamping places sent_ts in next packet. MoonGen however puts it directly in the packet
 
 class PCAPParser:
-    def __init__(self, file=None, cfile=None, trgenerator="MoonGen", loglevel=logging.ERROR):
+    def __init__(self, file=None, cfile=None, trgenerator="MoonGen", loglevel=logging.INFO):
         assert file is None or cfile is None
 
         if file:
@@ -54,6 +55,8 @@ class PCAPParser:
 
         self.logger.debug("Open core file: {}".format(cfile))
         self.cfile = cfile
+
+        self.logger.info("Generator Type: {}".format(trgenerator))
 
         assert self.file or self.cfile, "No file specified."
 
@@ -110,18 +113,21 @@ class PCAPParser:
                     if self.trgenerator == "MoonGen":
                         # data_dict[p_no]["sent_ts"] = sent_ts
                         data_sent_ts.append(sent_ts)
-                    elif self.trgenerator == "Python":
+                        data_seq_no.append(seq_no)
+                        recv_ts_sec, recv_ts_nsec = decimal_to_sec_nsec(recv_ts)
+                        data_recv_ts_sec.append(recv_ts_sec)
+                        data_recv_ts_nsec.append(recv_ts_nsec)
+                    elif self.trgenerator == "Hardware":
                         if not p_no == 0:
-                            # data_dict[p_no - 1]["sent_ts"] = sent_ts
                             data_sent_ts.append(sent_ts)
+                        if not p_no == pcap.snaplen - 1:
+                            recv_ts_sec, recv_ts_nsec = decimal_to_sec_nsec(recv_ts)
+                            data_recv_ts_sec.append(recv_ts_sec)
+                            data_recv_ts_nsec.append(recv_ts_nsec)
+                        data_seq_no.append(seq_no)
                     else:
                         self.logger.error("Specify used generator.")
                         return
-
-                    data_seq_no.append(seq_no)
-                    recv_ts_sec, recv_ts_nsec = decimal_to_sec_nsec(recv_ts)
-                    data_recv_ts_sec.append(recv_ts_sec)
-                    data_recv_ts_nsec.append(recv_ts_nsec)
                     p_no += 1
             except Exception as e:
                 self.logger.error("Error: {} \n in file: {}".format(e, pcap_file))
@@ -336,9 +342,10 @@ class PCAPParser:
 
         self.logger.info("Length data_seq_no: {}  delta_t_list: {}".format(len(data_seq_no), len(delta_t_list)))
 
+
         return delta_t_list
 
-    def ipdv(self, data_seq_no, data_sent_ts, data_recv_ts, *args):
+    def ipdv(self, data_seq_no, data_sent_ts, data_recv_ts, *args, return_seqnos=False):
         ipdv_list = []
 
         if not len(args):
@@ -502,6 +509,26 @@ class PCAPParser:
 
         return losses, total
 
+    def tx_rx(self, data_seq_no, data_sent_ts, data_recv_ts, *args):
+        tx_list = []
+        rx_list = []
+
+        for (sent_ts, recv_ts) in zip(data_sent_ts, data_recv_ts):
+            rx_list.append(sum(recv_ts))  # Note: This decreases the accuracy
+            tx_list.append(sent_ts)
+
+        return tx_list, rx_list
+
+    def iat(self, data_seq_no, data_sent_ts, data_recv_ts, *args):
+        iat_list = []
+
+        prev_recv_ts = None
+        for recv_ts in data_recv_ts:
+            if prev_recv_ts:
+                iat_list.append(sum(recv_ts) - prev_recv_ts)
+            prev_recv_ts = sum(recv_ts)
+        return iat_list
+
 
 def show_owdelay(delta_t_lists, files, save=False):
     fig = plt.figure(tight_layout=True)
@@ -641,11 +668,79 @@ def show_throughput(throughput_list, files, pkt_size=150, save=False):
     if save:
         pass
 
+def show_tx_rx(tx_rx_lists, files, save=False):
+    fig = plt.figure(tight_layout=True)
+    # fig.suptitle('Will be multiple plots later', fontsize=12)
+
+    ax_tx = fig.add_subplot(121)
+    ax_tx.set_title(r"TX Timestamps over Time")
+    ax_tx.set_ylabel(r'Timestamp (s)')
+    ax_tx.set_xlabel(r'Packet number')
+    ax_tx.grid(True)
+
+    ax_rx = fig.add_subplot(122)
+    ax_rx.set_title(r"RX Timestamps over Time")
+    ax_rx.set_ylabel(r'Timestamp (s)')
+    ax_rx.set_xlabel(r'Packet number')
+    ax_rx.grid(True)
+
+    for i, tx_rx_list in enumerate(tx_rx_lists):
+        name = "".join(files[i].split(".")[:-1])
+        tx_list, rx_list = tx_rx_list
+        print(tx_list[:50])
+        print(rx_list[:50])
+        tx_list = timestamp_normalization(tx_list)
+        rx_list = timestamp_normalization(rx_list)
+        ax_tx.plot(range(len(tx_list)), tx_list, label=name + " TX", color="red")
+        ax_rx.plot(range(len(rx_list)), rx_list, label=name + " RX", color="blue")
+        ax_tx.legend()
+        ax_rx.legend()
+
+    plt.show()
+
+    if save:
+        pass
+
+def show_iat(iat_lists, files, save=False):
+    fig = plt.figure(tight_layout=True)
+    # fig.suptitle('Will be multiple plots later', fontsize=12)
+
+    ax = fig.add_subplot(111)
+    ax.set_title(r"Inter-arrival time")
+    ax.set_xlabel(r'Inter-arrival time')
+    ax.set_ylabel(r'Number of Packets')
+    ax.grid(True)
+
+    for i, iat_list in enumerate(iat_lists):
+        name = "".join(files[i].split(".")[:-1])
+        print("Avg IAT: {}".format(np.mean(iat_list)))
+        ax.hist(iat_list, bins="auto", label=name)
+        ax.legend()
+
+    plt.show()
+
+    if save:
+        pass
+
+
+# https://towardsdatascience.com/linear-regression-in-6-lines-of-python-5e1d0cd05b8d
+def timestamp_normalization(ts_list):
+    ts_list = [ts - ts_list[0] for ts in ts_list]
+    ts_list_ind = np.arange(len(ts_list)).reshape(-1, 1)
+    ts_list = np.array(ts_list).reshape(-1, 1)
+    ts_regressor = LinearRegression()
+    ts_regressor.fit(ts_list_ind, ts_list)
+    ts_norm = ts_regressor.predict(ts_list_ind)
+    ts_list_norm = [tx - norm for (tx, norm) in zip(ts_list, ts_norm)]
+    return ts_list_norm
+
 
 def decimal_to_sec_nsec(ts):
-    ts_tuple = ts.as_tuple()
-    sec = sum([v * 10 ** i for i, v in enumerate(reversed(ts_tuple.digits[:ts_tuple.exponent]))])
-    nsec = sum([v * 10 ** -i for i, v in enumerate(ts_tuple.digits[ts_tuple.exponent:], 1)])
+    # ts_tuple = ts.as_tuple()
+    # sec = sum([v * 10 ** i for i, v in enumerate(reversed(ts_tuple.digits[:ts_tuple.exponent]))])
+    # nsec = sum([v * 10 ** -i for i, v in enumerate(ts_tuple.digits[ts_tuple.exponent:], 1)])
+    sec = int(ts)
+    nsec = ts % 1
     return sec, nsec
 
 
@@ -665,12 +760,12 @@ def issorted(l):
     # return (np.diff(l) >= 0).all()  # is diff between all consecutive entries >= 0
     return all(l[i] <= l[i+1] for i in range(len(l)-1))
 
+
 def check_unique(x):
     if len(x) > len(set(x)):
         return False
     else:
         return True
-
 
 
 # https://stackoverflow.com/questions/13530762/how-to-know-bytes-size-of-python-object-like-arrays-and-dictionaries-the-simp
@@ -753,7 +848,7 @@ if __name__ == "__main__":
     parser.add_argument('--files', help='Specify pcap files (can be multiple)', nargs='*')
     parser.add_argument('--show', help='Show plot', action='store_true')
     parser.add_argument('--save', help='Save plot', action='store_true')
-    parser.add_argument('--gen', help='Specify used traffic generator (\'MoonGen\' or \'Python\')', default='MoonGen')
+    parser.add_argument('--gen', help='Specify used traffic generator (\'MoonGen\' or \'Hardware\')', default='MoonGen')
     parser.add_argument('--save-pickle', help='Save analysed pcap metadata objects with pickle', action='store_true')
     parser.add_argument('--load-pickle', help='Load analysed pcap metadata objects with pickle', action='store_true')
     parser.add_argument('--type', help='Specify type of analysis / plot (\'owdelay\', \'ipdv\', \'throughput\')',
@@ -790,7 +885,7 @@ if __name__ == "__main__":
             opts = {"save_pickle": args.save_pickle, "load_pickle": args.load_pickle,
                     "save_pickle_dir": args.save_pickle_dir}
             for file in args.files:
-                pp_dict[file] = PCAPParser(file=file)
+                pp_dict[file] = PCAPParser(file=file, trgenerator=args.gen)
                 workers_dict[file] = pool.apply_async(pp_dict[file].analyze, args=[file], kwds=opts)
 
         for worker in workers_dict.keys():
@@ -810,6 +905,12 @@ if __name__ == "__main__":
         elif args.type == "downtime":
             downtimes = [pp_dict[key].downtime(*results_dict[key]) for key in results_dict.keys()]
         elif args.type == "losses":
-            downtimes = [pp_dict[key].losses(*results_dict[key]) for key in results_dict.keys()]
+            losses = [pp_dict[key].losses(*results_dict[key]) for key in results_dict.keys()]
+        elif args.type == "txrx":
+            tx_rx_lists = [pp_dict[key].tx_rx(*results_dict[key]) for key in results_dict.keys()]
+            show_tx_rx(tx_rx_lists, args.files, save=args.save)
+        elif args.type == "iat":
+            iat_lists = [pp_dict[key].iat(*results_dict[key]) for key in results_dict.keys()]
+            show_iat(iat_lists, args.files, save=args.save)
         else:
             print("Wrong plot type specified.")

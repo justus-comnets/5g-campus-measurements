@@ -145,6 +145,12 @@ do
 		ffi.C.clock_gettime(0, ts)
 		return ts.tv_sec, ts.tv_nsec
 	end
+
+	function getMonotonicTimestamp()
+		-- CLOCK_REALTIME = 0
+		ffi.C.clock_gettime(1, ts)
+		return ts.tv_sec, ts.tv_nsec
+	end
 end
 
 --- Subtract timeval values

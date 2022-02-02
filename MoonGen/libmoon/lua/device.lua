@@ -326,7 +326,8 @@ end
 
 
 --- Waits until all given devices are initialized by calling wait() on them.
-function mod.waitForLinks(...)
+function mod.waitForLinks(maxWait, ...)
+	maxWait = maxWait or 9
 	log:info("Waiting for devices to come up...")
 	local ports
 	if select("#", ...) == 0 then
@@ -344,7 +345,6 @@ function mod.waitForLinks(...)
 		portsUniq[port.id] = port
 	end
 	ports = {}
-	local maxWait = 9
 	for i, v in pairs(portsUniq) do
 		ports[#ports + 1] = v
 		maxWait = math.max(maxWait, v.linkWaitTime or 0)
@@ -540,6 +540,14 @@ function dev:readTime()
 	local res = dpdkc.rte_eth_timesync_read_time(self.id, ts)
 	checkDpdkError(res, "reading device time")
 	return tonumber(ts.tv_sec) * 10^9 + tonumber(ts.tv_nsec)
+end
+
+--- Reads the clock of the device
+function dev:readTimeTs()
+	local ts = ffi.new("struct timespec")
+	local res = dpdkc.rte_eth_timesync_read_time(self.id, ts)
+	checkDpdkError(res, "reading device time")
+	return ts.tv_sec, ts.tv_nsec
 end
 
 function dev:filterL2Timestamps(queue)
@@ -846,6 +854,10 @@ end
 function rxQueue:recvWithTimestamps(bufArray, numpkts)
 	numpkts = numpkts or bufArray.size
 	return dpdkc.dpdk_receive_with_timestamps_software(self.id, self.qid, bufArray.array, math.min(bufArray.size, numpkts))
+end
+
+function rxQueue:recvWithTimestampsClk(bufArray, clk_id)
+	return dpdkc.dpdk_receive_with_timestamps_software_clk(self.id, self.qid, bufArray.array, bufArray.size, clk_id)
 end
 
 function rxQueue:getMacAddr(number)

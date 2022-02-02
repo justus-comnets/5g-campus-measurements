@@ -19,10 +19,14 @@ local GOTCH     = 0x00004094
 local RXMTRL     = 0x00005120
 local TSYNCRXCTL = 0x00005188
 local RXSATRH    = 0x000051A8
+local TSYNCTXCTL = 0x00008C00
+local TXSTMPL    = 0x00008C04
+local TXSTMPH    = 0x00008C08
 local SYSTIMEL   = 0x00008C0C
 local SYSTIMEH   = 0x00008C10
 local TIMEADJL   = 0x00008C18
 local TIMEADJH   = 0x00008C1C
+
 local ETQS_3     = 0x0000EC00 + 4 * 3
 
 local TSYNCRXCTL_RXTT            = 1
@@ -30,6 +34,11 @@ local TSYNCRXCTL_TYPE_OFFS       = 1
 local TSYNCRXCTL_TYPE_MASK       = bit.lshift(7, TSYNCRXCTL_TYPE_OFFS)
 local TSYNCRXCTL_TSIP_UT_EN_OFFS = 23
 local TSYNCRXCTL_TSIP_UP_EN_OFFS = 24
+
+local TSYNCTXCTL_TXTT = 1
+local TSYNCTXCTL_EN_OFFS   = 4
+
+
 
 local ETQS_RX_QUEUE_OFFS   = 16
 local ETQS_QUEUE_ENABLE    = bit.lshift(1, 31)
@@ -92,8 +101,16 @@ function dev:enableRxTimestamps(queue, udpPort)
 	dpdkc.write_reg32(self.id, RXMTRL, bit.lshift(udpPort, 16))
 end
 
+function dev:enableTxTimestamps(queue)
+	dpdkc.rte_eth_timesync_enable(self.id)
+	local val = dpdkc.read_reg32(self.id, TSYNCTXCTL)
+	val = bit.bor(val, bit.lshift(1, TSYNCTXCTL_EN_OFFS))
+	dpdkc.write_reg32(self.id, TSYNCTXCTL, val)
+	return val
+end
+
 -- could skip a few registers here, but doesn't matter
-dev.enableTxTimestamps = dev.enableRxTimestamps
+--dev.enableTxTimestamps = dev.enableRxTimestamps
 
 function dev:hasRxTimestamp()
 	if bit.band(dpdkc.read_reg32(self.id, TSYNCRXCTL), TSYNCRXCTL_RXTT) == 0 then
@@ -102,6 +119,31 @@ function dev:hasRxTimestamp()
 	-- this register is undocumented on X550 but it seems to work just fine
 	local res = bswap16(bit.rshift(dpdkc.read_reg32(self.id, RXSATRH), 16))
 	return res
+end
+
+function dev:hasTxTimestamp()
+	if bit.band(dpdkc.read_reg32(self.id, TSYNCTXCTL), TSYNCTXCTL_TXTT) == 0 then
+		return false
+	else
+		return true
+	end
+end
+
+function dev:getTxReg()
+	return dpdkc.read_reg32(self.id, TSYNCTXCTL)
+end
+
+function dev:getTxTimestampTs()
+	local high, low
+	low = dpdkc.read_reg32(self.id, TXSTMPL)
+	high = dpdkc.read_reg32(self.id, TXSTMPH)
+	return high, low
+end
+
+function dev:clearTxTimestamps()
+	if self:hasTxTimestamp() then
+		self:getTxTimestamp()
+	end
 end
 
 function dev:filterL2Timestamps(queue)

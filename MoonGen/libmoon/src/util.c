@@ -26,6 +26,10 @@ void print_ptr(void* ptr) {
 	printf("ptr = %p\n", ptr);
 }
 
+uint64_t htobe64_export(uint64_t host_64bits){
+    return htobe64(host_64bits);
+}
+
 
 static inline uint16_t get_ipv4_psd_sum (struct ipv4_hdr* ip_hdr) {
 	uint16_t len = ip_hdr->total_length;

@@ -647,7 +647,7 @@ def show_consecutive_bp_multiple(nested_consecutives, labels=None, categories=No
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--logdir', help='Specify directory for logs/pcaps',
+    parser.add_argument('logdir', help='Specify directory for logs/pcaps',
                         default='../logs/measurements/VarParams/download')
     parser.add_argument('--load-pickle', help='Load analysed pcap metadata objects with pickle', action='store_true')
     args = parser.parse_args()

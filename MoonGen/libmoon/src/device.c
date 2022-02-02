@@ -10,6 +10,7 @@
 #include <rte_pci.h>
 
 #include "rdtsc.h"
+#include "time.h"
 
 #include "device.h"
 #include "lifecycle.h"
@@ -287,6 +288,22 @@ uint16_t dpdk_receive_with_timestamps_software(uint8_t port_id, uint16_t queue_i
 			return rx;
 		}
 	}
+	return 0;
+}
+
+// receive packets and save the wall clock at the time of the rx call
+// this prevents potential gc/jit pauses right between the rdtsc and rx calls
+uint16_t dpdk_receive_with_timestamps_software_clk(uint8_t port_id, uint16_t queue_id, struct rte_mbuf* rx_pkts[], uint16_t nb_pkts, clockid_t clk_id) {
+    struct timespec ts;
+	clock_gettime(clk_id, &ts);
+	uint16_t rx = rte_eth_rx_burst(port_id, queue_id, rx_pkts, nb_pkts);
+    for (int i = 0; i < rx; i++) {
+        rx_pkts[i]->udata64 = (uint64_t) (uint32_t)ts.tv_sec << 32;
+        rx_pkts[i]->udata64 += (uint32_t)ts.tv_nsec;
+    }
+    if (rx > 0) {
+        return rx;
+    }
 	return 0;
 }
 

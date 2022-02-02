@@ -306,6 +306,7 @@ ffi.cdef[[
 
 	// timestamping
 	uint16_t dpdk_receive_with_timestamps_software(uint8_t port_id, uint16_t queue_id, struct rte_mbuf** rx_pkts, uint16_t nb_pkts);
+	uint16_t dpdk_receive_with_timestamps_software_clk(uint8_t port_id, uint16_t queue_id, struct rte_mbuf* rx_pkts[], uint16_t nb_pkts, clockid_t clk_id);
 	int rte_eth_timesync_enable(uint8_t port_id);
 	int rte_eth_timesync_read_tx_timestamp(uint8_t port_id, struct timespec* timestamp);
 	int rte_eth_timesync_read_rx_timestamp(uint8_t port_id, struct timespec* timestamp, uint32_t timesync);
@@ -315,6 +316,10 @@ ffi.cdef[[
 
 	// statistics
 	void rte_eth_stats_get(uint8_t port, struct rte_eth_stats* stats);
+
+	// other
+	uint64_t htobe64_export(uint64_t host_64bits);
+
 ]]
 
 return ffi.C
